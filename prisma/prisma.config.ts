@@ -1,4 +1,4 @@
-import { PrismaClient, PrismaPromise } from '.prisma/client';
+import { PrismaClient, PrismaPromise } from '../node_modules/.prisma/client';
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
