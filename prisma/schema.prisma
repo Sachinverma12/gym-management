@@ -1,0 +1,142 @@
+generator client {
+  provider = "prisma-client"
+  output   = "./node_modules/.prisma/client/"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum UserRole {
+  ADMIN
+  MEMBER
+}
+
+enum MembershipPlan {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum FeeStatus {
+  PAID
+  PENDING
+  OVERDUE
+}
+
+enum CheckInStatus {
+  CHECKED_IN
+  CHECKED_OUT
+}
+
+enum NotificationType {
+  WELCOME
+  REMINDER_3_DAYS
+  REMINDER_DUE
+  REMINDER_OVERDUE
+  ATTENDANCE_CONFIRMATION
+}
+
+model User {
+  id          String   @id @default(uuid())
+  name        String
+  phone       String    @unique
+  email       String    @unique
+  photo       String?
+  role        UserRole  @default(MEMBER)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Membership plan assignment
+  membershipPlan MembershipPlan? 
+  membershipStart DateTime?
+  membershipEnd DateTime?
+  feeStatus       FeeStatus   @default(PENDING)
+  nextDueDate     DateTime?
+  
+  // Attendance - inverse relation via records field
+  attendanceRecords Attendance[]
+  
+  // Payments - inverse relation via payments field
+  payments Payment[]
+  
+  // Notifications - inverse relation via notifications field
+  notifications NotificationLog[]
+  
+  // Referrals with explicit relation names
+  referralsGiven Referral[] @relation("GivenReferrals")
+  referralsReceived Referral[] @relation("ReceivedReferrals")
+  
+  // Branch membership
+  branches Branch[]
+  
+  // Profile
+  lastCheckIn      DateTime?
+  attendanceCountThisMonth Int      @default(0)
+}
+
+model Attendance {
+  id           String   @id @default(uuid())
+  user         User     @relation(fields: [userId], references: [id])
+  userId       String
+  checkInAt    DateTime @default(now())
+  checkOutAt   DateTime?
+  checkInIp    String?
+  checkInUserAgent String?
+  branchId      String?   @default("default-branch")
+  status       CheckInStatus  @default(CHECKED_IN)
+}
+
+model MembershipPlanConfig {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  price       Decimal
+  duration    String   // e.g., "1 month", "3 months", "12 months"
+  durationNum Int
+  durationUnit String   // e.g., "month", "quarter", "year"
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model Payment {
+  id           String   @id @default(uuid())
+  user         User     @relation(fields: [userId], references: [id])
+  userId       String
+  amount       Decimal
+  paymentDate  DateTime @default(now())
+  method       String   // e.g., "cash", "card", "bank_transfer"
+  transactionId String?
+  notes        String?
+  createdAt    DateTime @default(now())
+}
+
+model Branch {
+  id   String   @id @default(uuid())
+  name String
+  qrCode String?
+  createdAt DateTime @default(now())
+  users User[]
+}
+
+model NotificationLog {
+  id            String   @id @default(uuid())
+  user          User     @relation(fields: [userId], references: [id])
+  userId        String
+  type          NotificationType
+  message       String
+  sentAt        DateTime @default(now())
+  whatsappSent   Boolean   @default(false)
+  whatsappMessageId String?
+  createdAt     DateTime @default(now())
+}
+
+model Referral {
+  id           String   @id @default(uuid())
+  referrer     User     @relation(name: "GivenReferrals", fields: [referrerId], references: [id])
+  referrerId   String
+  referred     User     @relation(name: "ReceivedReferrals", fields: [referredId], references: [id])
+  referredId   String
+  rewardGiven  Boolean  @default(false)
+  createdAt    DateTime @default(now())
+}
